@@ -1,28 +1,37 @@
 version: '3'
 services:
   intune-enrollment:
-    image: ubuntu:${UBUNTU_VERSION}
-    container_name: intune-enrollment-${UBUNTU_VERSION}
+    image: ubuntu:${UBUNTU_VERSION:-latest}
+    container_name: intune-enrollment-${UBUNTU_VERSION:-latest}
     volumes:
-      - ./${UBUNTU_VERSION}:/output
+      - ./$(sudo lsb_release -rs):/output
       - /usr/local/bin:/usr/local/bin
       - /usr/bin:/usr/bin
       - /etc/apt:/etc/apt
     command: >
-      bash -c '
+      bash -c "
         UBUNTU_VERSION=$(sudo lsb_release -rs)
-        if [ "$UBUNTU_VERSION" = "22.04" ]; then
+        if [ \"$UBUNTU_VERSION\" = \"22.04\" ]; then
+          TAG=\"22.04\"
+        elif [ \"$(echo \"$UBUNTU_VERSION >= 24.04\" | bc -l)\" -eq 1 ]; then
+          TAG=\"24.04+\"
+        else
+          echo \"Unsupported Ubuntu version: $UBUNTU_VERSION\"
+          exit 1
+        fi
+        echo \"Using tag: $TAG\"
+        if [ \"$TAG\" = \"22.04\" ]; then
           sudo apt-get update && sudo apt-get install -y curl gpg sudo
           sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
-          echo "deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
+          echo \"deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main\" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
           sudo apt-get update
           sudo apt-get purge -y microsoft-identity-broker
           sudo apt-get install -y microsoft-identity-broker=1.7.0
           sudo apt-mark hold microsoft-identity-broker
           sudo apt-get purge -y intune-portal
           sudo apt-get install -y intune-portal microsoft-edge-stable
-        elif [ "$UBUNTU_VERSION" = "24.04" ]; then
-          echo '"'"'Types: deb
+        elif [ \"$TAG\" = \"24.04+\" ]; then
+          echo 'Types: deb
           URIs: http://archive.ubuntu.com/ubuntu
           Suites: noble noble-updates noble-backports
           Components: main restricted universe multiverse
@@ -44,18 +53,15 @@ services:
           URIs: http://security.ubuntu.com/ubuntu/
           Suites: mantic-security
           Components: main restricted universe multiverse
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg'"'"' > /etc/apt/sources.list.d/ubuntu.sources
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' > /etc/apt/sources.list.d/ubuntu.sources
           sudo apt-get update && sudo apt-get install -y curl gpg sudo openjdk-11-jre libicu72 libjavascriptcoregtk-4.0-18 libwebkit2gtk-4.0-37
           sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
-          echo "deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
+          echo \"deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main\" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
           sudo apt-get update
           sudo apt-get install -y intune-portal microsoft-edge-stable
-          sed -i '"'"'s|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|'"'"' /lib/systemd/user/microsoft-identity-broker.service /lib/systemd/system/microsoft-identity-device-broker.service
+          sed -i 's|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|' /lib/systemd/user/microsoft-identity-broker.service /lib/systemd/system/microsoft-identity-device-broker.service
           rm -rf /root/.cache/intune-portal
           sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
-        else
-          echo "Unsupported Ubuntu version: $UBUNTU_VERSION"
-          exit 1
         fi
         sudo cp -r /usr/bin/intune-portal /output/
         sudo cp -r /opt/microsoft/intune /output/
@@ -63,6 +69,6 @@ services:
         sudo update-desktop-database
         sudo apt-get update
         sudo apt-cache search intune-portal
-      '
+      "
     tty: true
     stdin_open: true

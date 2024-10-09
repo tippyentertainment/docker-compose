@@ -1,70 +1,57 @@
 version: '3'
 services:
-  intune-enrollment-22-04:
-    image: ubuntu:22.04
-    container_name: intune-enrollment-22-04
+  intune-enrollment:
+    image: ubuntu:${UBUNTU_VERSION}
+    container_name: intune-enrollment-${UBUNTU_VERSION}
     volumes:
-      - ./22-04:/output
+      - ./${UBUNTU_VERSION}:/output
       - /usr/local/bin:/usr/local/bin
       - /usr/bin:/usr/bin
       - /etc/apt:/etc/apt
     command: >
       bash -c "
-        sudo apt-get update && sudo apt-get install -y curl gpg sudo
-        sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
-        echo \"deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main\" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
+        UBUNTU_VERSION=$(lsb_release -rs)
+        if [ \"$UBUNTU_VERSION\" = \"22.04\" ]; then
+          sudo apt-get update && sudo apt-get install -y curl gpg sudo
+          sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
+          echo \"deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main\" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
+        elif [ \"$UBUNTU_VERSION\" = \"24.04\" ]; then
+          echo 'Types: deb
+          URIs: http://archive.ubuntu.com/ubuntu
+          Suites: noble noble-updates noble-backports
+          Components: main restricted universe multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+          Types: deb
+          URIs: http://security.ubuntu.com/ubuntu/
+          Suites: noble-security
+          Components: main restricted universe multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+          Types: deb
+          URIs: http://nl.archive.ubuntu.com/ubuntu/
+          Suites: mantic
+          Components: main restricted universe multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+          Types: deb
+          URIs: http://security.ubuntu.com/ubuntu/
+          Suites: mantic-security
+          Components: main restricted universe multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' > /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update && sudo apt-get install -y curl gpg sudo openjdk-11-jre libicu72 libjavascriptcoregtk-4.0-18 libwebkit2gtk-4.0-37
+          sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
+          echo \"deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main\" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
+        fi
         sudo apt-get update
         sudo apt-get install -y intune-portal microsoft-edge-stable
+        if [ \"$UBUNTU_VERSION\" = \"24.04\" ]; then
+          sed -i 's|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|' /lib/systemd/user/microsoft-identity-broker.service /lib/systemd/system/microsoft-identity-device-broker.service
+          rm -rf /root/.cache/intune-portal
+          sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
+        fi
         sudo cp -r /usr/bin/intune-portal /output/
-        sudo /opt/microsoft/intune/bin/intune-portal > /output/intune-portal-output.log
-        sudo update-desktop-database
-      "
-    tty: true
-    stdin_open: true
-
-  intune-enrollment-24-04:
-    image: ubuntu:24.04
-    container_name: intune-enrollment-24-04
-    volumes:
-      - ./24-04:/output
-      - /usr/local/bin:/usr/local/bin
-      - /usr/bin:/usr/bin
-      - /etc/apt:/etc/apt
-    command: >
-      bash -c "
-        echo 'Types: deb
-        URIs: http://archive.ubuntu.com/ubuntu
-        Suites: noble noble-updates noble-backports
-        Components: main restricted universe multiverse
-        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-
-        Types: deb
-        URIs: http://security.ubuntu.com/ubuntu/
-        Suites: noble-security
-        Components: main restricted universe multiverse
-        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-
-        Types: deb
-        URIs: http://nl.archive.ubuntu.com/ubuntu/
-        Suites: mantic
-        Components: main restricted universe multiverse
-        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-
-        Types: deb
-        URIs: http://security.ubuntu.com/ubuntu/
-        Suites: mantic-security
-        Components: main restricted universe multiverse
-        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' > /etc/apt/sources.list.d/ubuntu.sources
-
-        sudo apt-get update && sudo apt-get install -y curl gpg sudo openjdk-11-jre libicu72 libjavascriptcoregtk-4.0-18 libwebkit2gtk-4.0-37
-        sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
-        echo \"deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main\" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
-        sudo apt-get update
-        sudo apt-get install -y intune-portal microsoft-edge-stable
-        sed -i 's|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|' /lib/systemd/user/microsoft-identity-broker.service /lib/systemd/system/microsoft-identity-device-broker.service
-        rm -rf /root/.cache/intune-portal
-        sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
-        sudo cp -r /usr/bin/intune-portal /output/
+        sudo cp -r /opt/microsoft/intune /output/
         sudo /opt/microsoft/intune/bin/intune-portal > /output/intune-portal-output.log
         sudo update-desktop-database
       "

@@ -1,10 +1,10 @@
 version: '3'
 services:
   intune-enrollment:
-    image: ubuntu:${UBUNTU_VERSION}
-    container_name: intune-enrollment-${UBUNTU_VERSION}
+    image: ubuntu:${UBUNTU_VERSION:-latest}
+    container_name: intune-enrollment-${UBUNTU_VERSION:-latest}
     volumes:
-      - ./${UBUNTU_VERSION}:/output
+      - ./output:/output
       - /usr/local/bin:/usr/local/bin
       - /usr/bin:/usr/bin
       - /etc/apt:/etc/apt
@@ -55,17 +55,14 @@ services:
           sudo apt-get install -y intune-portal microsoft-edge-stable
           sed -i '"'"'s|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|'"'"' /lib/systemd/user/microsoft-identity-broker.service /lib/systemd/system/microsoft-identity-device-broker.service
           rm -rf /root/.cache/intune-portal
-          sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
-        else
-          echo "Unsupported Ubuntu version: $UBUNTU_VERSION"
-          exit 1
+          update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
         fi
-        sudo cp -r /usr/bin/intune-portal /output/
-        sudo cp -r /opt/microsoft/intune /output/
-        sudo /opt/microsoft/intune/bin/intune-portal > /output/intune-portal-output.log
-        sudo update-desktop-database
-        sudo apt-get update
-        sudo apt-cache search intune-portal
+        cp -r /usr/bin/intune-portal /output/
+        cp -r /opt/microsoft/intune /output/
+        /opt/microsoft/intune/bin/intune-portal > /output/intune-portal-output.log
+        update-desktop-database
+        apt-get update
+        apt-cache search intune-portal
       '
     tty: true
     stdin_open: true

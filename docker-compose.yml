@@ -16,6 +16,10 @@ services:
           sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
           echo \"deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main\" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
           sudo apt-get update
+          sudo apt-get purge -y microsoft-identity-broker
+          sudo apt-get install -y microsoft-identity-broker=1.7.0
+          sudo apt-mark hold microsoft-identity-broker
+          sudo apt-get purge -y intune-portal
           sudo apt-get install -y intune-portal microsoft-edge-stable
         elif [ \"$UBUNTU_VERSION\" = \"24.04\" ]; then
           echo 'Types: deb
@@ -57,6 +61,8 @@ services:
         sudo cp -r /opt/microsoft/intune /output/
         sudo /opt/microsoft/intune/bin/intune-portal > /output/intune-portal-output.log
         sudo update-desktop-database
+        sudo apt-get update
+        sudo apt-cache search intune-portal
       "
     tty: true
     stdin_open: true

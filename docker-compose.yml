@@ -8,20 +8,23 @@ services:
       - /usr/local/bin:/usr/local/bin
       - /usr/bin:/usr/bin
       - /etc/apt:/etc/apt
+    environment:
+      - UBUNTU_VERSION_22=22.04
+      - UBUNTU_VERSION_24=24.04
     command: >
       bash -c '
         UBUNTU_VERSION=$(sudo lsb_release -rs)
-        if [ "$UBUNTU_VERSION" = "22.04" ]; then
+        if [ "$UBUNTU_VERSION" = "$UBUNTU_VERSION_22" ]; then
           sudo apt-get update && sudo apt-get install -y curl gpg sudo
           sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
-          echo "deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
+          echo "deb [arch=amd64] https://packages.microsoft.com/ubuntu/$UBUNTU_VERSION_22/prod jammy main" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
           sudo apt-get update
           sudo apt-get purge -y microsoft-identity-broker
           sudo apt-get install -y microsoft-identity-broker=1.7.0
           sudo apt-mark hold microsoft-identity-broker
           sudo apt-get purge -y intune-portal
           sudo apt-get install -y intune-portal microsoft-edge-stable
-        elif [ "$UBUNTU_VERSION" = "24.04" ]; then
+        elif [ "$UBUNTU_VERSION" = "$UBUNTU_VERSION_24" ]; then
           echo '"'"'Types: deb
           URIs: http://archive.ubuntu.com/ubuntu
           Suites: noble noble-updates noble-backports
@@ -47,7 +50,7 @@ services:
           Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg'"'"' > /etc/apt/sources.list.d/ubuntu.sources
           sudo apt-get update && sudo apt-get install -y curl gpg sudo openjdk-11-jre libicu72 libjavascriptcoregtk-4.0-18 libwebkit2gtk-4.0-37
           sudo curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.gpg
-          echo "deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
+          echo "deb [arch=amd64] https://packages.microsoft.com/ubuntu/$UBUNTU_VERSION_22/prod jammy main" > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list
           sudo apt-get update
           sudo apt-get install -y intune-portal microsoft-edge-stable
           sed -i '"'"'s|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|'"'"' /lib/systemd/user/microsoft-identity-broker.service /lib/systemd/system/microsoft-identity-device-broker.service

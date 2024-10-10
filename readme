@@ -1,0 +1,94 @@
+# Docker Compose Configuration for Edge Intune
+
+This Docker Compose configuration sets up two services:
+
+1. `edge-intune`: This service installs the Microsoft Edge browser and the Intune Portal on an Ubuntu 22.04 base image. It performs the following steps:
+   - Updates the package lists
+   - Installs required dependencies
+   - Adds the Microsoft package repository
+   - Installs the Microsoft Edge browser
+   - Upgrades the installed packages
+   - Installs the Intune Portal
+   - Runs the container in the foreground to keep it alive
+
+2. `edge-intune-24`: This service sets up an Ubuntu 24.04 base image and performs the following steps:
+   - Configures the Ubuntu package sources
+   - Installs required dependencies
+   - Adds the Microsoft package repository
+   - Installs the Intune Portal
+   - Modifies the Java Home environment variable in the Microsoft Identity Broker and Device Broker services
+   - Installs a dummy default-jre package to satisfy a dependency
+   - Runs the container in the foreground to keep it alive
+
+Both services are marked as `privileged` to allow them to perform the necessary system-level operations.
+version: '3'
+services:
+  edge-intune:
+    image: ubuntu:22.04
+    command: >
+      bash -c "
+        apt-get update && apt-get install -y software-properties-common apt-transport-https wget curl gpg &&
+        wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | apt-key add - &&
+        add-apt-repository 'deb [arch=amd64] https://packages.microsoft.com/repos/edge stable main' &&
+        apt-get update && apt-get install -y microsoft-edge-dev &&
+        apt-get upgrade -y &&
+        curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg &&
+        install -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/ &&
+        echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main' > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list &&
+        rm microsoft.gpg &&
+        apt-get update && apt-get install -y intune-portal &&
+        tail -f /dev/null
+      "
+    privileged: true
+
+  edge-intune-24:
+    image: ubuntu:24.04
+    command: >
+      bash -c "
+        echo 'Types: deb
+        URIs: http://archive.ubuntu.com/ubuntu
+        Suites: noble noble-updates noble-backports
+        Components: main restricted universe multiverse
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        
+        Types: deb
+        URIs: http://security.ubuntu.com/ubuntu/
+        Suites: noble-security
+        Components: main restricted universe multiverse
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        
+        Types: deb
+        URIs: http://nl.archive.ubuntu.com/ubuntu/
+        Suites: mantic
+        Components: main restricted universe multiverse
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        
+        Types: deb
+        URIs: http://security.ubuntu.com/ubuntu/
+        Suites: mantic-security
+        Components: main restricted universe multiverse
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' > /etc/apt/sources.list.d/ubuntu.sources &&
+        apt-get update && apt-get install -y curl gpg sudo &&
+        curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg &&
+        install -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/ &&
+        echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main' > /etc/apt/sources.list.d/microsoft-ubuntu-jammy-prod.list &&
+        rm microsoft.gpg &&
+        apt-get update &&
+        apt-get install -y openjdk-11-jre libicu72 libjavascriptcoregtk-4.0-18 libwebkit2gtk-4.0-37 &&
+        apt-get install -y intune-portal &&
+        sed -i 's|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|' /lib/systemd/user/microsoft-identity-broker.service &&
+        sed -i 's|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64|' /lib/systemd/system/microsoft-identity-device-broker.service &&
+        apt-get install -y equivs &&
+        echo 'Section: misc
+        Priority: optional
+        Standards-Version: 3.9.2
+        
+        Package: default-jre-dummy
+        Maintainer: Dummy Nobody
+        Provides: default-jre
+        Description: Dummy package to satisfy default-jre dependency' > default-jre-dummy &&
+        equivs-build default-jre-dummy &&
+        dpkg -i default-jre-dummy_1.0_all.deb &&
+        tail -f /dev/null
+      "
+    privileged: true
